@@ -14,7 +14,8 @@
     "db:generate": "pnpm --filter @museum/api db:generate",
     "db:migrate": "pnpm --filter @museum/api db:migrate",
     "infra:up": "docker compose -f infra/docker/docker-compose.yml up -d postgres redis minio minio-init",
-    "infra:down": "docker compose -f infra/docker/docker-compose.yml down"
+    "infra:down": "docker compose -f infra/docker/docker-compose.yml down",
+    "start": "pnpm dev"
   },
   "devDependencies": {
     "openapi-typescript": "^7.13.0"

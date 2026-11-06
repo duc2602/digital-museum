@@ -66,14 +66,17 @@ Production nên dùng S3 hoặc image đã được tổ chức kiểm duyệt.
    pnpm --filter @museum/api db:seed
    ```
 
-3. Chạy ứng dụng:
+3. Chạy giao diện và API cùng lúc:
 
    ```powershell
-   pnpm dev
-   pnpm --filter @museum/api dev:worker
+   pnpm start
    ```
 
-Truy cập <http://localhost:5173>. Vite chuyển tiếp `/api` tới backend.
+Truy cập <http://localhost:5173>. Vite chuyển tiếp `/api` tới backend. Worker chỉ cần mở ở terminal riêng khi chạy các job nền:
+
+```powershell
+pnpm --filter @museum/api dev:worker
+```
 
 ## Kiểm tra
 
