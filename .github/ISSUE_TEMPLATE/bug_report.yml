@@ -1,0 +1,42 @@
+name: Bug report
+about: Ghi lỗi có thể tái hiện
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: textarea
+    id: expected
+    attributes:
+      label: Kết quả mong đợi
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Kết quả thực tế
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Bước tái hiện
+      placeholder: |-
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Mức ảnh hưởng
+      options:
+        - Critical - demo hoặc dữ liệu không dùng được
+        - High - luồng chính lỗi
+        - Normal - có cách tránh tạm
+        - Low - hiển thị hoặc trải nghiệm nhỏ
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Môi trường / log / ảnh
+      description: Xóa token, mật khẩu và dữ liệu cá nhân khỏi log trước khi dán.

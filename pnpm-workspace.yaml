@@ -1,0 +1,10 @@
+packages:
+  - apps/web
+  - apps/api
+
+allowBuilds:
+  '@prisma/client': true
+  '@scarf/scarf': false
+  '@prisma/engines': true
+  msgpackr-extract: false
+  prisma: true

@@ -1,0 +1,38 @@
+name: User story
+about: Đề xuất một lát giá trị có thể demo được
+title: "[Story]: "
+labels: [story]
+body:
+  - type: textarea
+    id: story
+    attributes:
+      label: User story
+      description: Là [vai trò], tôi muốn [nhu cầu], để [giá trị].
+      placeholder: Là ..., tôi muốn ..., để ...
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Tiêu chí nghiệm thu
+      description: Liệt kê điều kiện kiểm chứng được, gồm trường hợp lỗi/quyền liên quan.
+      placeholder: |-
+        - Given ... When ... Then ...
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Phụ thuộc / câu hỏi còn mở
+      description: API, dữ liệu, quyết định hoặc người cần phản hồi.
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Ưu tiên
+      options:
+        - Must
+        - Should
+        - Could
+        - Won't this time
+    validations:
+      required: true

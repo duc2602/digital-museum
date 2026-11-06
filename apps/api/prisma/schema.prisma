@@ -1,0 +1,202 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(uuid()) @db.Uuid
+  email        String        @unique
+  passwordHash String        @map("password_hash")
+  displayName  String        @map("display_name")
+  status       String        @default("ACTIVE")
+  version      Int           @default(1)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  deletedAt    DateTime?     @map("deleted_at")
+  roles        UserRole[]
+  sessions     UserSession[]
+  auditEvents  AuditEvent[]
+  artifacts    Artifact[]
+  terms        Term[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String           @id @default(uuid()) @db.Uuid
+  code        String           @unique
+  name        String
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(uuid()) @db.Uuid
+  code        String           @unique
+  description String
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  userId    String   @map("user_id") @db.Uuid
+  roleId    String   @map("role_id") @db.Uuid
+  grantedAt DateTime @default(now()) @map("granted_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String     @map("role_id") @db.Uuid
+  permissionId String     @map("permission_id") @db.Uuid
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model UserSession {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt, expiresAt])
+  @@map("user_sessions")
+}
+
+model SystemSetting {
+  scope     String   @default("global")
+  key       String
+  value     Json
+  isSecret  Boolean  @default(false) @map("is_secret")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@id([scope, key])
+  @@map("system_settings")
+}
+
+model Catalog {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique
+  name      String
+  status    String   @default("ACTIVE")
+  version   Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  terms     Term[]
+
+  @@map("catalogs")
+}
+
+model Term {
+  id            String             @id @default(uuid()) @db.Uuid
+  catalogId     String             @map("catalog_id") @db.Uuid
+  parentId      String?            @map("parent_id") @db.Uuid
+  code          String
+  status        String             @default("ACTIVE")
+  version       Int                @default(1)
+  createdBy     String             @map("created_by") @db.Uuid
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+  deletedAt     DateTime?          @map("deleted_at")
+  catalog       Catalog            @relation(fields: [catalogId], references: [id])
+  parent        Term?              @relation("TermHierarchy", fields: [parentId], references: [id])
+  children      Term[]             @relation("TermHierarchy")
+  creator       User               @relation(fields: [createdBy], references: [id])
+  translations  TermTranslation[]
+  artifactLinks ArtifactTerm[]
+
+  @@unique([catalogId, code])
+  @@index([catalogId, status, code])
+  @@index([parentId])
+  @@map("terms")
+}
+
+model TermTranslation {
+  termId      String   @map("term_id") @db.Uuid
+  locale      String
+  label       String
+  description String?
+  term        Term     @relation(fields: [termId], references: [id], onDelete: Cascade)
+
+  @@id([termId, locale])
+  @@map("term_translations")
+}
+
+model Artifact {
+  id              String              @id @default(uuid()) @db.Uuid
+  accessionNumber String              @unique @map("accession_number")
+  status          String              @default("DRAFT")
+  createdBy       String              @map("created_by") @db.Uuid
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  deletedAt       DateTime?           @map("deleted_at")
+  version         Int                 @default(1)
+  creator         User                @relation(fields: [createdBy], references: [id])
+  translations    ArtifactTranslation[]
+  terms           ArtifactTerm[]
+
+  @@index([status, updatedAt, id])
+  @@map("artifacts")
+}
+
+model ArtifactTranslation {
+  artifactId        String   @map("artifact_id") @db.Uuid
+  locale            String
+  title             String
+  descriptionFormat String   @default("prosemirror_json") @map("description_format")
+  descriptionRich   Json     @map("description_rich")
+  descriptionText   String   @default("") @map("description_text")
+  artifact          Artifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+
+  @@id([artifactId, locale])
+  @@index([locale])
+  @@map("artifact_translations")
+}
+
+model ArtifactTerm {
+  artifactId String   @map("artifact_id") @db.Uuid
+  termId     String   @map("term_id") @db.Uuid
+  assignedBy String   @map("assigned_by") @db.Uuid
+  artifact   Artifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  term       Term     @relation(fields: [termId], references: [id])
+
+  @@id([artifactId, termId])
+  @@index([termId])
+  @@map("artifact_terms")
+}
+
+model AuditEvent {
+  id               String   @id @default(uuid()) @db.Uuid
+  actorType        String   @default("USER") @map("actor_type")
+  actorId          String?  @map("actor_id") @db.Uuid
+  action           String
+  resourceType     String   @map("resource_type")
+  resourceId       String   @map("resource_id") @db.Uuid
+  correlationId    String?  @map("correlation_id")
+  redactedChanges  Json?    @map("redacted_changes")
+  occurredAt       DateTime @default(now()) @map("occurred_at")
+  actor             User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([resourceType, resourceId, occurredAt])
+  @@index([actorId, occurredAt])
+  @@index([correlationId])
+  @@map("audit_events")
+}
