@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { CSSProperties, FormEvent } from 'react'
 import { api, ApiError } from './lib/api'
 import type { Artifact, Catalog, Term, User } from './lib/api'
 
-type Page = 'artifacts' | 'taxonomy' | 'users'
+type Page = 'dashboard' | 'artifacts' | 'taxonomy' | 'users'
 
 function App() {
   const [user, setUser] = useState<User | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
   const [error, setError] = useState('')
-  const [page, setPage] = useState<Page>('artifacts')
+  const [page, setPage] = useState<Page>('dashboard')
 
   useEffect(() => {
     let active = true
@@ -71,6 +71,13 @@ function App() {
         <div className="sidebar-label">KHÔNG GIAN LÀM VIỆC</div>
         <nav className="primary-nav" aria-label="Điều hướng chính">
           <button
+            className={page === 'dashboard' ? 'nav-item active' : 'nav-item'}
+            onClick={() => setPage('dashboard')}
+          >
+            <span className="nav-icon" aria-hidden="true">⌂</span>
+            Tổng quan
+          </button>
+          <button
             className={page === 'artifacts' ? 'nav-item active' : 'nav-item'}
             onClick={() => setPage('artifacts')}
           >
@@ -102,7 +109,7 @@ function App() {
 
       <main className="main-panel">
         <header className="topbar">
-          <div className="breadcrumb">BỘ SƯU TẬP <span>/</span> {page === 'artifacts' ? 'HỒ SƠ HIỆN VẬT' : page === 'taxonomy' ? 'DANH MỤC' : 'NGƯỜI DÙNG'}</div>
+          <div className="breadcrumb">BỘ SƯU TẬP <span>/</span> {page === 'dashboard' ? 'TỔNG QUAN' : page === 'artifacts' ? 'HỒ SƠ HIỆN VẬT' : page === 'taxonomy' ? 'DANH MỤC' : 'NGƯỜI DÙNG'}</div>
           <div className="user-menu">
             <div className="user-avatar" aria-hidden="true">{user.displayName.slice(0, 1).toUpperCase()}</div>
             <div className="user-meta">
@@ -115,7 +122,14 @@ function App() {
 
         <div className="workspace">
           {error && <div className="alert error-alert" role="alert">{error}</div>}
-          {page === 'artifacts' ? (
+          {page === 'dashboard' ? (
+            <DashboardPage
+              canWrite={user.permissions.includes('artifact:write')}
+              canManageUsers={user.permissions.includes('user:manage')}
+              onNavigate={setPage}
+              onError={setError}
+            />
+          ) : page === 'artifacts' ? (
             <ArtifactsPage
               canWrite={user.permissions.includes('artifact:write')}
               onError={setError}
@@ -131,6 +145,130 @@ function App() {
         </div>
       </main>
     </div>
+  )
+}
+
+function DashboardPage({
+  canWrite,
+  canManageUsers,
+  onNavigate,
+  onError,
+}: {
+  canWrite: boolean
+  canManageUsers: boolean
+  onNavigate: (page: Page) => void
+  onError: (message: string) => void
+}) {
+  const [artifacts, setArtifacts] = useState<Artifact[]>([])
+  const [terms, setTerms] = useState<Term[]>([])
+  const [loading, setLoading] = useState(true)
+  const [now] = useState(() => new Date())
+
+  useEffect(() => {
+    let active = true
+    Promise.all([
+      api.artifacts.list({ limit: 100, offset: 0 }),
+      api.catalogs.list(),
+    ])
+      .then(async ([artifactPage, catalogs]) => {
+        const termGroups = await Promise.all(catalogs.map((catalog) => api.catalogs.terms(catalog.id)))
+        const catalogTerms = termGroups.flat()
+        if (active) {
+          setArtifacts(artifactPage.items)
+          setTerms(catalogTerms)
+        }
+      })
+      .catch((reason: unknown) => {
+        if (active) onError(errorMessage(reason))
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => { active = false }
+  }, [onError])
+
+  const recentArtifacts = useMemo(() => [...artifacts].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt)).slice(0, 5), [artifacts])
+  const classifiedCount = artifacts.filter((artifact) => artifact.terms.length > 0).length
+  const draftCount = artifacts.filter((artifact) => artifact.status === 'DRAFT').length
+  const coverage = artifacts.length ? Math.round(classifiedCount / artifacts.length * 100) : 0
+  const monthCounts = useMemo(() => {
+    return Array.from({ length: 6 }, (_, index) => {
+      const month = new Date(now.getFullYear(), now.getMonth() - 5 + index, 1)
+      const count = artifacts.filter((artifact) => {
+        const updatedAt = new Date(artifact.updatedAt)
+        return updatedAt.getFullYear() === month.getFullYear() && updatedAt.getMonth() === month.getMonth()
+      }).length
+      return { label: new Intl.DateTimeFormat('vi-VN', { month: 'short' }).format(month), count }
+    })
+  }, [artifacts, now])
+  const maxMonthCount = Math.max(1, ...monthCounts.map(({ count }) => count))
+  const linePoints = monthCounts.map(({ count }, index) => `${12 + index * 59},${82 - (count / maxMonthCount) * 55}`).join(' ')
+
+  return (
+    <section className="dashboard-page">
+      <div className="page-heading dashboard-heading">
+        <div>
+          <span className="eyebrow">KHÔNG GIAN LÀM VIỆC</span>
+          <h1>Tổng quan bộ sưu tập</h1>
+          <p>Theo dõi hồ sơ và truy cập nhanh vào công việc quản lý di sản.</p>
+        </div>
+        {canWrite && <button className="button primary" onClick={() => onNavigate('artifacts')}><span className="plus" aria-hidden="true">+</span> Mở hồ sơ</button>}
+      </div>
+
+      <div className="dashboard-stats">
+        <article className="dashboard-stat">
+          <span className="dashboard-stat-icon teal" aria-hidden="true">▤</span>
+          <div><span className="dashboard-stat-label">HỒ SƠ HIỂN THỊ</span><strong>{loading ? '—' : artifacts.length}</strong><small>Tối đa 100 hồ sơ gần nhất</small></div>
+        </article>
+        <article className="dashboard-stat">
+          <span className="dashboard-stat-icon amber" aria-hidden="true">◷</span>
+          <div><span className="dashboard-stat-label">BẢN NHÁP</span><strong>{loading ? '—' : draftCount}</strong><small>Trong danh sách hiện tại</small></div>
+        </article>
+        <article className="dashboard-stat">
+          <span className="dashboard-stat-icon violet" aria-hidden="true">⌘</span>
+          <div><span className="dashboard-stat-label">THUẬT NGỮ</span><strong>{loading ? '—' : terms.length}</strong><small>Trên các danh mục hiện có</small></div>
+        </article>
+        <article className="dashboard-stat">
+          <span className="dashboard-stat-icon green" aria-hidden="true">◉</span>
+          <div><span className="dashboard-stat-label">ĐÃ PHÂN LOẠI</span><strong>{loading ? '—' : `${coverage}%`}</strong><small>{classifiedCount} / {artifacts.length} hồ sơ đang tải</small></div>
+        </article>
+      </div>
+
+      <div className="dashboard-chart-grid">
+        <article className="dashboard-card chart-card">
+          <div className="dashboard-card-heading"><div><h2>Nhịp cập nhật hồ sơ</h2><p>Số hồ sơ trong danh sách hiện tại theo tháng</p></div><span className="chart-period">6 tháng</span></div>
+          <div className="line-chart-wrap">
+            <div className="chart-guides" aria-hidden="true"><i /><i /><i /></div>
+            <svg className="line-chart" viewBox="0 0 320 100" role="img" aria-label="Biểu đồ số hồ sơ cập nhật theo tháng">
+              <polyline points={linePoints} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              {monthCounts.map(({ count }, index) => <circle key={`${index}-${count}`} cx={12 + index * 59} cy={82 - (count / maxMonthCount) * 55} r="4" />)}
+            </svg>
+          </div>
+          <div className="chart-months">{monthCounts.map(({ label, count }, index) => <span key={`${label}-${index}`} title={`${count} hồ sơ`}>{label}</span>)}</div>
+        </article>
+
+        <article className="dashboard-card coverage-card">
+          <div className="dashboard-card-heading"><div><h2>Phân loại dữ liệu</h2><p>Tình trạng phân loại của hồ sơ đang tải</p></div><span className="coverage-ring" aria-label={`Đã phân loại ${coverage}%`} style={{ '--coverage': `${coverage * 3.6}deg` } as CSSProperties}><span>{loading ? '—' : `${coverage}%`}</span></span></div>
+          <div className="coverage-legend"><span><i className="legend-dot classified" /> Đã phân loại <strong>{loading ? '—' : classifiedCount}</strong></span><span><i className="legend-dot unclassified" /> Chưa phân loại <strong>{loading ? '—' : artifacts.length - classifiedCount}</strong></span></div>
+          <div className="coverage-bar" aria-hidden="true"><span style={{ width: `${coverage}%` }} /></div>
+          <p className="coverage-note">Số liệu chỉ tính trên 100 hồ sơ gần nhất được API trả về.</p>
+        </article>
+      </div>
+
+      <div className="dashboard-bottom-grid">
+        <article className="dashboard-card recent-card">
+          <div className="dashboard-card-heading"><div><h2>Hồ sơ cập nhật gần đây</h2><p>Dữ liệu mới nhất từ bộ sưu tập</p></div><button className="dashboard-link" onClick={() => onNavigate('artifacts')}>Xem tất cả <span aria-hidden="true">→</span></button></div>
+          {loading ? <div className="dashboard-empty">Đang tải hồ sơ…</div> : recentArtifacts.length === 0 ? <div className="dashboard-empty">Chưa có hồ sơ để hiển thị.</div> : <div className="recent-list">{recentArtifacts.map((artifact) => <div className="recent-row" key={artifact.id}><span className="recent-thumb" aria-hidden="true">✦</span><div className="recent-copy"><strong>{artifact.translations[0]?.title ?? 'Chưa có tiêu đề'}</strong><small>{artifact.accessionNumber}</small></div><span className="status-badge draft">{artifact.status === 'DRAFT' ? 'Bản nháp' : artifact.status}</span><time>{new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit' }).format(new Date(artifact.updatedAt))}</time></div>)}</div>}
+        </article>
+
+        <article className="dashboard-card shortcuts-card">
+          <div className="dashboard-card-heading"><div><h2>Truy cập nhanh</h2><p>Đi tới khu vực làm việc</p></div></div>
+          <button className="shortcut-row" onClick={() => onNavigate('artifacts')}><span className="shortcut-icon teal">▤</span><span><strong>Hồ sơ hiện vật</strong><small>Tạo và cập nhật hồ sơ</small></span><b aria-hidden="true">→</b></button>
+          <button className="shortcut-row" onClick={() => onNavigate('taxonomy')}><span className="shortcut-icon amber">⌘</span><span><strong>Danh mục & thuật ngữ</strong><small>Chuẩn hóa dữ liệu</small></span><b aria-hidden="true">→</b></button>
+          {canManageUsers && <button className="shortcut-row" onClick={() => onNavigate('users')}><span className="shortcut-icon violet">♙</span><span><strong>Người dùng</strong><small>Tài khoản và vai trò</small></span><b aria-hidden="true">→</b></button>}
+        </article>
+      </div>
+    </section>
   )
 }
 
