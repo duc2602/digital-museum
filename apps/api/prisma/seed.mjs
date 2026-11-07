@@ -11,6 +11,7 @@ const permissions = [
   ['artifact:read', 'Read artifact records'],
   ['artifact:write', 'Create and update artifact records'],
   ['user:manage', 'Create users and manage their roles and status'],
+  ['role:grant-manager', 'Grant user-management roles'],
 ];
 
 try {
@@ -32,7 +33,7 @@ try {
     outputType: 'encoded',
   });
 
-  await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const permissionRows = await Promise.all(
       permissions.map(([code, description]) =>
         tx.permission.upsert({
@@ -52,6 +53,11 @@ try {
       where: { code: 'EDITOR' },
       create: { code: 'EDITOR', name: 'Biên tập viên' },
       update: { name: 'Biên tập viên' },
+    });
+    const managerRole = await tx.role.upsert({
+      where: { code: 'MANAGER' },
+      create: { code: 'MANAGER', name: 'Quản lý nội dung' },
+      update: { name: 'Quản lý nội dung' },
     });
 
     await Promise.all(
@@ -74,6 +80,7 @@ try {
       'artifact:read',
       'artifact:write',
     ]);
+    const managerPermissionCodes = new Set([...editorPermissionCodes, 'user:manage']);
     await Promise.all(
       permissionRows
         .filter((permission) => editorPermissionCodes.has(permission.code))
@@ -90,6 +97,44 @@ try {
           }),
         ),
     );
+
+    await Promise.all(
+      permissionRows
+        .filter((permission) => managerPermissionCodes.has(permission.code))
+        .map((permission) =>
+          tx.rolePermission.upsert({
+            where: {
+              roleId_permissionId: {
+                roleId: managerRole.id,
+                permissionId: permission.id,
+              },
+            },
+            create: { roleId: managerRole.id, permissionId: permission.id },
+            update: {},
+          }),
+        ),
+    );
+
+    const existingAdmin = await tx.user.findFirst({
+      where: {
+        deletedAt: null,
+        roles: { some: { role: { code: 'ADMIN' } } },
+      },
+      select: { id: true },
+    });
+    if (existingAdmin) {
+      await tx.catalog.upsert({
+        where: { code: 'GENERAL' },
+        create: { code: 'GENERAL', name: 'Danh mục chung' },
+        update: {},
+      });
+      await tx.systemSetting.upsert({
+        where: { scope_key: { scope: 'global', key: 'enabled_locales' } },
+        create: { scope: 'global', key: 'enabled_locales', value: ['vi'] },
+        update: {},
+      });
+      return { bootstrapped: false };
+    }
 
     const admin = await tx.user.upsert({
       where: { email },
@@ -121,9 +166,13 @@ try {
       update: {},
     });
 
-    return admin.id;
+    return { bootstrapped: true };
   });
-  console.log(`Admin account ready: ${email}`);
+  if (result.bootstrapped) {
+    console.log(`Admin account ready: ${email}`);
+  } else {
+    console.log('An admin already exists; skipped adding another bootstrap admin.');
+  }
 } finally {
   await prisma.$disconnect();
 }

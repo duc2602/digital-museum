@@ -6,16 +6,12 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "pnpm --parallel --filter @museum/api --filter @museum/web dev",
     "api:types": "openapi-typescript docs/api/openapi.yaml -o apps/web/src/generated/openapi.d.ts",
     "build": "pnpm api:types && pnpm --filter @museum/api build && pnpm --filter @museum/web build",
     "lint": "pnpm --recursive --if-present lint",
     "test": "pnpm --recursive --if-present test",
-    "db:generate": "pnpm --filter @museum/api db:generate",
-    "db:migrate": "pnpm --filter @museum/api db:migrate",
-    "infra:up": "docker compose -f infra/docker/docker-compose.yml up -d postgres redis minio minio-init",
-    "infra:down": "docker compose -f infra/docker/docker-compose.yml down",
-    "start": "pnpm dev"
+    "start": "node scripts/docker-compose.mjs up --build",
+    "stop": "node scripts/docker-compose.mjs down"
   },
   "devDependencies": {
     "openapi-typescript": "^7.13.0"

@@ -210,8 +210,8 @@ td strong { color: #2e332e; font-size: 11px; font-weight: 650; }
 .login-art::after { width: 460px; height: 460px; right: -90px; top: 18%; }
 .login-art-copy { position: relative; z-index: 1; max-width: 610px; }
 .login-art .eyebrow { color: #d5c393; }
-.login-art h1 { margin: 24px 0 17px; font: 400 clamp(40px, 5vw, 68px)/1.08 Georgia, serif; letter-spacing: -1.5px; }
-.login-art h1 em { color: #d7c18f; font-weight: 400; }
+.login-art h1 { margin: 24px 0 17px; font: 400 clamp(40px, 5vw, 68px)/1.08 Georgia, "Times New Roman", serif; letter-spacing: -1px; }
+.login-art h1 em { color: #d7c18f; font-family: "Segoe UI", Arial, sans-serif; font-size: .88em; font-style: normal; font-weight: 600; letter-spacing: -1.2px; }
 .login-art-copy p { max-width: 390px; color: #d1d8ce; font-size: 14px; line-height: 1.8; }
 .artifact-stamp {
   position: absolute; z-index: 1; right: 11%; bottom: 12%; width: 116px; height: 116px;

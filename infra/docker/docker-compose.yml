@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-this-development-password}
       POSTGRES_DB: ${POSTGRES_DB:-museum}
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:${POSTGRES_EXPOSED_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -57,10 +57,10 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >-
-        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" &&
+        until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do sleep 1; done &&
         until mc ready local; do sleep 1; done &&
         mc mb --ignore-existing "local/$$MINIO_BUCKET" &&
-        mc cors set "local/$$MINIO_BUCKET" /config/cors.json
+        (mc cors set "local/$$MINIO_BUCKET" /config/cors.json || echo "WARNING: MinIO rejected bucket CORS config; continuing because app startup does not require browser uploads")
 
   api:
     build:

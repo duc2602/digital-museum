@@ -22,14 +22,32 @@ import {
 const USER_INCLUDE = {
   roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } },
 } satisfies Prisma.UserInclude;
+const PRIVILEGED_ROLE_PERMISSION = 'role:grant-manager';
+const USER_MANAGEMENT_PERMISSION = 'user:manage';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list() {
+  async list(actor: AuthPrincipal) {
+    const canManagePrivilegedUsers = actor.permissions.includes(PRIVILEGED_ROLE_PERMISSION);
     const rows = await this.prisma.user.findMany({
-      where: { deletedAt: null },
+      where: {
+        deletedAt: null,
+        ...(canManagePrivilegedUsers
+          ? {}
+          : {
+              roles: {
+                none: {
+                  role: {
+                    permissions: {
+                      some: { permission: { code: USER_MANAGEMENT_PERMISSION } },
+                    },
+                  },
+                },
+              },
+            }),
+      },
       orderBy: [{ displayName: 'asc' }, { id: 'asc' }],
       include: USER_INCLUDE,
     });
@@ -41,8 +59,17 @@ export class UsersService {
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
       include: { permissions: { include: { permission: true } } },
     });
+    const canGrantManager = actor.permissions.includes(PRIVILEGED_ROLE_PERMISSION);
     return roles
-      .filter((role) => role.permissions.every(({ permission }) => actor.permissions.includes(permission.code)))
+      .filter((role) => {
+        const hasUserManagement = role.permissions.some(
+          ({ permission }) => permission.code === USER_MANAGEMENT_PERMISSION,
+        );
+        return (
+          (!hasUserManagement || canGrantManager) &&
+          role.permissions.every(({ permission }) => actor.permissions.includes(permission.code))
+        );
+      })
       .map((role) => ({
         id: role.id,
         code: role.code,
@@ -122,6 +149,13 @@ export class UsersService {
         include: USER_INCLUDE,
       });
       if (!target) throw new NotFoundException('User not found');
+      if (
+        target.id !== actor.id &&
+        !actor.permissions.includes(PRIVILEGED_ROLE_PERMISSION) &&
+        this.hasPermission(target.roles.map(({ role }) => role), USER_MANAGEMENT_PERMISSION)
+      ) {
+        throw new ForbiddenException('You cannot manage another user manager');
+      }
       if (target.version !== expectedVersion) {
         throw new ConflictException('User changed since it was loaded; reload and retry');
       }
@@ -201,7 +235,16 @@ export class UsersService {
       include: { permissions: { include: { permission: true } } },
     });
     if (roles.length !== roleIds.length) throw new BadRequestException('One or more roles do not exist');
-    if (roles.some((role) => role.permissions.some(({ permission }) => !actor.permissions.includes(permission.code)))) {
+    const canGrantManager = actor.permissions.includes(PRIVILEGED_ROLE_PERMISSION);
+    if (
+      roles.some((role) =>
+        role.permissions.some(
+          ({ permission }) =>
+            !actor.permissions.includes(permission.code) ||
+            (permission.code === USER_MANAGEMENT_PERMISSION && !canGrantManager),
+        ),
+      )
+    ) {
       throw new ForbiddenException('You cannot grant permissions you do not hold');
     }
     return roles;

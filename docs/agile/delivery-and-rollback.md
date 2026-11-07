@@ -27,7 +27,7 @@ Trong demo, backup DB và object storage hằng ngày, giữ ít nhất 7 bản.
 
 ## Cấu hình môi trường
 
-Hiện có root `.env.example` dùng Compose, `apps/api/.env.example` dùng API chạy native và `apps/api/.env` local bị ignore. Đây là hai đường chạy khác nhau, không phải ba file secret cần đưa lên GitHub. Trong Sprint 1 xác minh cấu hình nào cần thiết cho từng lệnh, loại bỏ giá trị mặc định nguy hiểm khỏi production, tài liệu hóa env bắt buộc; không commit `.env` thật. Trước production cần secret manager/CI secrets riêng và cấu hình production tách biệt khỏi dev.
+Root `.env.example` là mẫu cấu hình duy nhất cho Docker Compose; mỗi máy tạo `.env` riêng và không commit secret. Trước production cần secret manager/CI secrets riêng và cấu hình production tách biệt khỏi dev.
 
 ## Giới hạn hiện tại cần đưa vào backlog
 

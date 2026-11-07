@@ -25,8 +25,8 @@ export class UsersController {
   constructor(private readonly users: UsersService) {}
 
   @Get()
-  list() {
-    return this.users.list();
+  list(@CurrentUser() actor: AuthPrincipal) {
+    return this.users.list(actor);
   }
 
   @Get('roles')

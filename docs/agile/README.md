@@ -7,7 +7,7 @@ Bộ tài liệu này là khung khởi đầu để ba người cùng chia việ
 - Backlog và tiêu chí ở `product-backlog.md` lấy từ yêu cầu nhóm mới nhất: 3 thành viên, 8 tuần, US01–US12, workflow biên tập, MoSCoW và chỉ tiêu nghiệm thu.
 - Tài liệu Product Backlog & Sprint Plan trước đó là bản nháp nền. Nếu khác phạm vi mới (ví dụ nhóm 5 người, 8 story hoặc chưa có QR), dùng yêu cầu mới nhất làm chuẩn; không lấy phân công 5 người làm thực tế.
 - Repo hiện dùng NestJS/TypeScript, PostgreSQL/Prisma; yêu cầu mới nói máy chủ Python. Đây là xung đột kiến trúc phải được nhóm/PO chốt bằng ADR trong Sprint 1 trước khi mở rộng backend. Không coi mã hiện có là bằng chứng rằng yêu cầu Python đã được đáp ứng.
-- Tệp `.env` thật chỉ dành cho máy chạy local. Hai `.env.example` hiện phục vụ hai cách chạy (Compose tại root và API native); Sprint 1 cần thống nhất hướng dẫn và cấu hình triển khai, không commit secret.
+- Root `.env.example` là mẫu cấu hình duy nhất cho Docker Compose. Mỗi máy tạo `.env` riêng từ mẫu này; không commit secret.
 
 ## Mục tiêu sản phẩm
 

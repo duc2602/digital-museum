@@ -35,8 +35,6 @@ Suggested streams and initial boundaries are in [`docs/team/README.md`](docs/tea
 
 ## Environment files
 
-- Root `.env.example`: Compose/local stack sample.
-- `apps/api/.env.example`: API-native local run sample.
-- `apps/api/.env`: local secret/config; ignored and must stay out of commits.
-
-Copy the appropriate example for the run mode. If a variable changes, update the example and README; never put real secrets in examples, issues, logs, or PRs.
+- Root `.env.example` is the single template for Docker Compose.
+- Copy it to root `.env` for local development. Keep `.env` out of commits.
+- Never put real secrets in examples, issues, logs, or PRs.
